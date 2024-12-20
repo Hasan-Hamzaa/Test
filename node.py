@@ -1,16 +1,17 @@
+# node.py
 from flask import Flask, jsonify, request, render_template
 from blockchain import Blockchain
 import json
 import argparse
 import sqlite3
-import os
+
+app = Flask(__name__)
 
 # Command-line arguments for P2P port
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=5001, help="Port for the blockchain node")
 args = parser.parse_args()
 
-app = Flask(__name__)
 blockchain = Blockchain(difficulty=2, port=args.port)
 
 
@@ -19,34 +20,42 @@ def get_all_listings():
     # Read from both databases (8000 and 8001)
     for port in [8000, 8001]:
         db_name = f'database_{port}.db'
-        if os.path.exists(db_name):  # Only try to read if database exists
-            try:
-                conn = sqlite3.connect(db_name)
-                cursor = conn.cursor()
+        try:
+            conn = sqlite3.connect(db_name)
+            cursor = conn.cursor()
 
-                # Get all list-type transactions
-                cursor.execute("SELECT * FROM transactions WHERE type='list'")
-                transactions = cursor.fetchall()
+            # Get all active list-type transactions, ordered by newest first
+            cursor.execute("""
+                SELECT * FROM transactions 
+                WHERE type='list' AND id NOT IN (
+                    SELECT t1.id FROM transactions t1
+                    JOIN transactions t2 ON t1.product = t2.product 
+                    AND t1.sender = t2.sender
+                    WHERE t2.type='purchase'
+                )
+                ORDER BY id DESC
+            """)
 
-                # Convert to dictionary format
-                for tx in transactions:
-                    listing = {
-                        'sender': tx[1],
-                        'receiver': tx[2],
-                        'product': tx[3],
-                        'amount': tx[4],
-                        'type': tx[5]
-                    }
-                    if listing not in listings:  # Avoid duplicates
-                        listings.append(listing)
+            transactions = cursor.fetchall()
 
-            except sqlite3.Error as e:
-                print(f"Database error for {db_name}: {e}")
-            finally:
-                if 'conn' in locals():
-                    conn.close()
+            # Convert to dictionary format
+            for tx in transactions:
+                listing = {
+                    'sender': tx[1],
+                    'receiver': tx[2],
+                    'product': tx[3],
+                    'amount': tx[4],
+                    'type': tx[5]
+                }
+                if listing not in listings:  # Avoid duplicates
+                    listings.append(listing)
+
+        except sqlite3.Error as e:
+            print(f"Database error for {db_name}: {e}")
+        finally:
+            if 'conn' in locals():
+                conn.close()
     return listings
-
 
 @app.route('/')
 def index():
@@ -67,7 +76,11 @@ def buy_page():
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
     previous_block = blockchain.get_latest_block()
-    previous_hash = '0' if previous_block is None else previous_block['hash']
+    if previous_block is None:
+        previous_hash = '0'
+    else:
+        previous_hash = previous_block['hash']
+
     block = blockchain.create_block(previous_hash)
     response = {'message': 'Block mined successfully!', 'block': block}
     return jsonify(response), 200
@@ -82,8 +95,40 @@ def get_chain():
 @app.route('/is_valid', methods=['GET'])
 def is_valid():
     is_valid = blockchain.is_chain_valid(blockchain.chain)
-    response = {'message': 'The blockchain is valid.' if is_valid else 'The blockchain is not valid!'}
+    if is_valid:
+        response = {'message': 'The blockchain is valid.'}
+    else:
+        response = {'message': 'The blockchain is not valid!'}
     return jsonify(response), 200
+
+
+@app.route('/view_database', methods=['GET'])
+def view_database():
+    try:
+        # Get current port's database
+        db_name = f'database_{blockchain.flask_port}.db'
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Get blocks
+        cursor.execute("SELECT * FROM blocks ORDER BY idx DESC")
+        blocks = cursor.fetchall()
+
+        # Get transactions
+        cursor.execute("SELECT * FROM transactions ORDER BY id DESC")
+        transactions = cursor.fetchall()
+
+        conn.close()
+
+        formatted_blocks = []
+        for block in blocks:
+            formatted_blocks.append(blockchain.create_block_from_tuple(block))
+
+        # Pass data to template with show_database flag
+        return render_template('index.html', show_database=True, blocks=formatted_blocks, transactions=transactions)
+
+    except sqlite3.Error as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/list_product', methods=['POST'])
@@ -93,14 +138,7 @@ def list_product():
     if not all(field in json_data for field in required_fields):
         return 'Listing data incomplete', 400
 
-    index = blockchain.add_transaction(
-        json_data['sender'],
-        None,
-        json_data['product'],
-        json_data['amount'],
-        'list'
-    )
-
+    index = blockchain.add_transaction(json_data['sender'], None, json_data['product'], json_data['amount'], 'list')
     response = {'message': f'Product will be added to Block {index}'}
     return jsonify(response), 201
 
@@ -115,47 +153,46 @@ def purchase_product():
     # Try to find and process the purchase in both databases
     for port in [8000, 8001]:
         db_name = f'database_{port}.db'
-        if os.path.exists(db_name):
-            try:
-                conn = sqlite3.connect(db_name)
-                cursor = conn.cursor()
+        try:
+            conn = sqlite3.connect(db_name)
+            cursor = conn.cursor()
 
-                # Find the listing
-                cursor.execute("""
-                    SELECT * FROM transactions 
-                    WHERE sender = ? AND product = ? AND type = 'list'
-                """, (json_data['seller'], json_data['product']))
+            # Find the listing
+            cursor.execute("""
+                SELECT * FROM transactions 
+                WHERE sender = ? AND product = ? AND type = 'list'
+                AND id NOT IN (
+                    SELECT t1.id FROM transactions t1
+                    JOIN transactions t2 ON t1.product = t2.product 
+                    AND t1.sender = t2.sender
+                    WHERE t2.type='purchase'
+                )
+            """, (json_data['seller'], json_data['product']))
 
-                listing = cursor.fetchone()
-                if listing:
-                    # Add purchase transaction
-                    blockchain.add_transaction(
-                        json_data['seller'],
-                        json_data['buyer'],
-                        json_data['product'],
-                        listing[4],  # amount
-                        'purchase'
-                    )
+            listing = cursor.fetchone()
+            if listing:
+                # Add purchase transaction
+                blockchain.add_transaction(
+                    json_data['seller'],
+                    json_data['buyer'],
+                    json_data['product'],
+                    listing[4],  # amount
+                    'purchase'
+                )
 
-                    # Remove the listing
-                    cursor.execute("""
-                        DELETE FROM transactions 
-                        WHERE sender = ? AND product = ? AND type = 'list'
-                    """, (json_data['seller'], json_data['product']))
+                conn.commit()
+                return jsonify({'message': 'Product purchased successfully!'}), 200
 
-                    conn.commit()
-                    return jsonify({'message': 'Product purchased successfully!'}), 200
-
-            except sqlite3.Error as e:
-                print(f"Database error: {e}")
-            finally:
-                if conn:
-                    conn.close()
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+        finally:
+            if conn:
+                conn.close()
 
     return 'Product not found or not listed', 404
 
 
-@app.route('/get_peers', methods=['GET'])
+@app.route('/get_peers')
 def get_peers():
     return jsonify({'peers': list(blockchain.connected_peers)}), 200
 
