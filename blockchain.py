@@ -127,11 +127,28 @@ class Blockchain:
             'product': product,
             'amount': amount,
             'type': transaction_type,
-            'timestamp': time.time()  # Add timestamp
+            'timestamp': time.time()
         }
 
-        # Store in database immediately
+        # Store in current node's database
         self.store_transaction_in_db(sender, receiver, product, amount, transaction_type)
+
+        # Store in other node's database
+        other_port = 8001 if self.flask_port == 8000 else 8000
+        other_db = f'database_{other_port}.db'
+        try:
+            conn = sqlite3.connect(other_db)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO transactions (sender, receiver, product, amount, type) VALUES (?, ?, ?, ?, ?)",
+                (sender, receiver, product, amount, transaction_type)
+            )
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error storing transaction in other database: {e}")
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
         # Add to pending transactions
         self.transactions.append(transaction)
@@ -144,10 +161,16 @@ class Blockchain:
 
         self.create_block(previous_hash)
 
-        # Broadcast to other nodes
-        self.broadcast_transaction(transaction)
+        # Try to broadcast to other node
+        try:
+            other_port = 8001 if self.flask_port == 8000 else 8000
+            requests.post(f'http://127.0.0.1:{other_port}/receive_transaction',
+                          json={'transaction': transaction})
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to broadcast to other node: {e}")
 
         return len(self.chain)
+
     def get_latest_block(self):
         return self.chain[-1] if self.chain else None
 
