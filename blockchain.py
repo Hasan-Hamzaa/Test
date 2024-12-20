@@ -126,16 +126,28 @@ class Blockchain:
             'receiver': receiver,
             'product': product,
             'amount': amount,
-            'type': transaction_type
+            'type': transaction_type,
+            'timestamp': time.time()  # Add timestamp
         }
-        self.transactions.append(transaction)
+
+        # Store in database immediately
         self.store_transaction_in_db(sender, receiver, product, amount, transaction_type)
+
+        # Add to pending transactions
+        self.transactions.append(transaction)
+
+        # Create block immediately (auto-mining)
+        if self.get_latest_block() is None:
+            previous_hash = '0'
+        else:
+            previous_hash = self.get_latest_block()['hash']
+
+        self.create_block(previous_hash)
+
+        # Broadcast to other nodes
         self.broadcast_transaction(transaction)
 
-        if self.get_latest_block() is not None:
-            return self.get_latest_block()['index'] + 1
-        return 1
-
+        return len(self.chain)
     def get_latest_block(self):
         return self.chain[-1] if self.chain else None
 

@@ -24,14 +24,39 @@ def sell_page():
     return render_template('sell.html')
 
 @app.route('/buy')
+@app.route('/buy')
 def buy_page():
     listings = []
-    for block in blockchain.chain:
-        for tx in block['transactions']:
-            if tx['type'] == 'list':
-                listings.append(tx)
-    return render_template('buy.html', listings=listings)
 
+    # Get database name based on port
+    db_name = f'database_{blockchain.flask_port}.db'
+
+    try:
+        # Connect to database
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Get all list-type transactions
+        cursor.execute("SELECT * FROM transactions WHERE type='list'")
+        transactions = cursor.fetchall()
+
+        # Convert to dictionary format
+        for tx in transactions:
+            listings.append({
+                'sender': tx[1],
+                'receiver': tx[2],
+                'product': tx[3],
+                'amount': tx[4],
+                'type': tx[5]
+            })
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    return render_template('buy.html', listings=listings)
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
     """Endpoint to receive transactions from other nodes"""
