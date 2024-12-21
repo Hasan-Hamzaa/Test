@@ -36,6 +36,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Network Stats -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Active Nodes Card -->
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -48,6 +49,7 @@
                     </div>
                 </div>
 
+                <!-- Recent Transactions Card -->
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -60,6 +62,7 @@
                     </div>
                 </div>
 
+                <!-- Network Status Card -->
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -75,8 +78,14 @@
 
             <!-- Network Visualization -->
             <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Network Visualization</h2>
-                <div class="h-96 border border-gray-200 rounded-lg" id="network-visualization">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Network Visualization</h2>
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-circle text-green-500 mr-1"></i> Online
+                        <i class="fas fa-circle text-red-500 ml-4 mr-1"></i> Offline
+                    </div>
+                </div>
+                <div class="h-96 border border-gray-200 rounded-lg bg-gray-50" id="network-visualization">
                     <!-- SVG will be inserted here -->
                 </div>
             </div>
@@ -86,12 +95,21 @@
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-semibold text-gray-800">Activity Log</h2>
                     <div class="flex space-x-2">
-                        <button onclick="filterTransactions('all')" class="px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors">All</button>
-                        <button onclick="filterTransactions('list')" class="px-3 py-1 rounded-md bg-green-100 hover:bg-green-200 transition-colors">Listings</button>
-                        <button onclick="filterTransactions('purchase')" class="px-3 py-1 rounded-md bg-purple-100 hover:bg-purple-200 transition-colors">Purchases</button>
+                        <button onclick="filterTransactions('all')"
+                                class="px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm">
+                            All
+                        </button>
+                        <button onclick="filterTransactions('list')"
+                                class="px-3 py-1 rounded-md bg-green-100 hover:bg-green-200 transition-colors text-sm">
+                            Listings
+                        </button>
+                        <button onclick="filterTransactions('purchase')"
+                                class="px-3 py-1 rounded-md bg-purple-100 hover:bg-purple-200 transition-colors text-sm">
+                            Purchases
+                        </button>
                     </div>
                 </div>
-                <div id="activity-log" class="space-y-2 max-h-96 overflow-y-auto">
+                <div id="activity-log" class="space-y-3 max-h-96 overflow-y-auto">
                     <!-- Activity logs will be inserted here -->
                 </div>
             </div>
@@ -145,6 +163,12 @@
                 .stroke({ color: '#3B82F6', width: 2 })
                 .move(pos.x - 30, pos.y - 30);
 
+            // Port label with background
+            const labelBg = node.rect(60, 24)
+                .fill('#fff')
+                .radius(12)
+                .center(pos.x, pos.y);
+
             // Port number
             node.text(port.toString())
                 .font({ family: 'Arial', size: 14, weight: 'bold' })
@@ -194,29 +218,82 @@
                         particle.remove();
                         trail.remove();
                     });
+
+                // Create success indicator
+                const success = draw.circle(30)
+                    .fill(type === 'list' ? '#10B981' : '#8B5CF6')
+                    .move(to.x - 15, to.y - 15)
+                    .attr('opacity', 0.2);
+
+                success.animate(500)
+                    .attr('opacity', 0)
+                    .after(() => success.remove());
             });
 
-            // Add to activity log
+            // Add to activity log with enhanced details
             const log = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleString();
+            const transactionColor = type === 'list' ? 'green' : 'purple';
+            const transactionIcon = type === 'list' ? 'tag' : 'shopping-cart';
+
             const logEntry = document.createElement('div');
-            logEntry.className = `p-3 bg-gray-50 rounded-md transaction-log ${type}`;
+            logEntry.className = `p-4 bg-gray-50 rounded-md transaction-log ${type} hover:bg-gray-100 transition-all`;
             logEntry.innerHTML = `
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center">
-                        <i class="fas fa-${type === 'list' ? 'tag' : 'shopping-cart'}
-                                 text-${type === 'list' ? 'green' : 'purple'}-500 mr-2"></i>
-                        <span class="font-medium">Port ${fromPort} → Port ${toPort}</span>
+                        <div class="bg-${transactionColor}-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-${transactionIcon} text-${transactionColor}-500"></i>
+                        </div>
+                        <div>
+                            <span class="font-medium text-gray-800">${type === 'list' ? 'New Listing' : 'Purchase'}</span>
+                            <div class="text-sm text-gray-500">${timestamp}</div>
+                        </div>
                     </div>
-                    <span class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</span>
+                    <span class="px-3 py-1 rounded-full text-sm bg-${transactionColor}-100 text-${transactionColor}-800">
+                        Port ${fromPort} → ${toPort}
+                    </span>
                 </div>
-                <p class="text-sm text-gray-600 mt-1">${details}</p>
+                <div class="pl-12 space-y-1">
+                    ${details ? `
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-gray-600 text-sm">Product:</span>
+                                <span class="font-medium ml-2">${details.product || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600 text-sm">Price:</span>
+                                <span class="font-medium ml-2">$${details.amount || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600 text-sm">${type === 'list' ? 'Seller' : 'Buyer'}:</span>
+                                <span class="font-medium ml-2">${details.sender || 'N/A'}</span>
+                            </div>
+                            ${type === 'purchase' ? `
+                                <div>
+                                    <span class="text-gray-600 text-sm">Status:</span>
+                                    <span class="text-green-600 font-medium ml-2">Completed</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${type === 'list' ? `
+                            <div class="mt-2 text-sm text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Product has been listed on the blockchain
+                            </div>
+                        ` : `
+                            <div class="mt-2 text-sm text-gray-500">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Transaction has been recorded on the blockchain
+                            </div>
+                        `}
+                    ` : ''}
+                </div>
             `;
             log.insertBefore(logEntry, log.firstChild);
         }
 
         let lastTransactionId = 0;
-
-        async function checkForNewTransactions() {
+async function checkForNewTransactions() {
             try {
                 const response = await fetch('/get_latest_transactions');
                 const data = await response.json();
@@ -248,10 +325,13 @@
                         }
 
                         if (toPort) {
-                            // Create transaction description
-                            const details = latestTx.type === 'purchase'
-                                ? `Purchase: ${latestTx.product} for $${latestTx.amount} from ${latestTx.sender}`
-                                : `Listed: ${latestTx.product} for $${latestTx.amount} by ${latestTx.sender}`;
+                            const details = {
+                                product: latestTx.product,
+                                amount: latestTx.amount,
+                                sender: latestTx.sender,
+                                receiver: latestTx.receiver,
+                                timestamp: new Date().toLocaleString()
+                            };
 
                             // Animate the transaction
                             animateTransaction(fromPort, toPort, latestTx.type, details);
@@ -264,7 +344,11 @@
 
                                     otherPorts.forEach((port, index) => {
                                         setTimeout(() => {
-                                            animateTransaction(toPort, port, 'list', 'Propagating listing to network');
+                                            const propagationDetails = {
+                                                ...details,
+                                                note: 'Propagating to network'
+                                            };
+                                            animateTransaction(toPort, port, 'list', propagationDetails);
                                         }, index * 500);
                                     });
                                 }, 1000);
@@ -296,7 +380,7 @@
                 let activeCount = 0;
 
                 Object.entries(status).forEach(([port, state]) => {
-                const nodeElement = nodeElements[port];
+                    const nodeElement = nodeElements[port];
                     if (nodeElement) {
                         const color = state === 'online' ? '#10B981' : '#EF4444';
                         nodeElement.statusRing.stroke({ color });
