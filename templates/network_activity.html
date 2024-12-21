@@ -99,176 +99,233 @@
     </div>
 
     <script>
-    // Initialize SVG drawing
-    const draw = SVG().addTo('#network-visualization').size('100%', '100%');
-    const containerWidth = document.getElementById('network-visualization').offsetWidth;
-    const containerHeight = document.getElementById('network-visualization').offsetHeight;
+        // Initialize SVG drawing
+        const draw = SVG().addTo('#network-visualization').size('100%', '100%');
+        const containerWidth = document.getElementById('network-visualization').offsetWidth;
+        const containerHeight = document.getElementById('network-visualization').offsetHeight;
 
-    // Calculate node positions based on container size
-    const centerX = containerWidth / 2;
-    const centerY = containerHeight / 2;
-    const radius = Math.min(containerWidth, containerHeight) / 3;
+        // Calculate node positions based on container size
+        const centerX = containerWidth / 2;
+        const centerY = containerHeight / 2;
+        const radius = Math.min(containerWidth, containerHeight) / 3;
 
-    // Node positions in a pentagon formation
-    const nodes = {
-        8000: { x: centerX, y: centerY - radius },  // Top
-        8001: { x: centerX + radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) },  // Right top
-        8002: { x: centerX + radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Right bottom
-        8003: { x: centerX - radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Left bottom
-        8004: { x: centerX - radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) }   // Left top
-    };
+        // Node positions in a pentagon formation
+        const nodes = {
+            8000: { x: centerX, y: centerY - radius },  // Top
+            8001: { x: centerX + radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) },  // Right top
+            8002: { x: centerX + radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Right bottom
+            8003: { x: centerX - radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Left bottom
+            8004: { x: centerX - radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) }   // Left top
+        };
 
-    // Draw connection lines between nodes
-    Object.entries(nodes).forEach(([fromPort, fromPos]) => {
-        Object.entries(nodes).forEach(([toPort, toPos]) => {
-            if (fromPort < toPort) {
-                draw.line(fromPos.x, fromPos.y, toPos.x, toPos.y)
-                    .stroke({ color: '#E5E7EB', width: 1, dasharray: '4' });
-            }
+        // Draw connection lines between nodes
+        Object.entries(nodes).forEach(([fromPort, fromPos]) => {
+            Object.entries(nodes).forEach(([toPort, toPos]) => {
+                if (fromPort < toPort) {
+                    draw.line(fromPos.x, fromPos.y, toPos.x, toPos.y)
+                        .stroke({ color: '#E5E7EB', width: 1, dasharray: '4' });
+                }
+            });
         });
-    });
 
-    // Draw nodes
-    const nodeElements = {};
-    Object.entries(nodes).forEach(([port, pos]) => {
-        const node = draw.group();
+        // Draw nodes
+        const nodeElements = {};
+        Object.entries(nodes).forEach(([port, pos]) => {
+            const node = draw.group();
 
-        // Outer circle (status indicator)
-        const statusRing = node.circle(70)
-            .fill('none')
-            .stroke({ color: '#E5E7EB', width: 2 })
-            .move(pos.x - 35, pos.y - 35);
+            // Outer circle (status indicator)
+            const statusRing = node.circle(70)
+                .fill('none')
+                .stroke({ color: '#E5E7EB', width: 2 })
+                .move(pos.x - 35, pos.y - 35);
 
-        // Inner circle (node)
-        const circle = node.circle(60)
-            .fill('#fff')
-            .stroke({ color: '#3B82F6', width: 2 })
-            .move(pos.x - 30, pos.y - 30);
+            // Inner circle (node)
+            const circle = node.circle(60)
+                .fill('#fff')
+                .stroke({ color: '#3B82F6', width: 2 })
+                .move(pos.x - 30, pos.y - 30);
 
-        // Port number
-        node.text(port.toString())
-            .font({ family: 'Arial', size: 14, weight: 'bold' })
-            .center(pos.x, pos.y);
+            // Port number
+            node.text(port.toString())
+                .font({ family: 'Arial', size: 14, weight: 'bold' })
+                .center(pos.x, pos.y);
 
-        nodeElements[port] = { node, statusRing };
-    });
+            nodeElements[port] = { node, statusRing };
+        });
 
-    // Function to animate transaction
-    function animateTransaction(fromPort, toPort, type, details) {
-        const from = nodes[fromPort];
-        const to = nodes[toPort];
+        // Function to animate transaction
+        function animateTransaction(fromPort, toPort, type, details) {
+            const from = nodes[fromPort];
+            const to = nodes[toPort];
 
-        // Create transaction particle
-        const particle = draw.circle(10)
-            .fill(type === 'list' ? '#10B981' : '#8B5CF6')
-            .move(from.x - 5, from.y - 5);
+            // Create transaction particle with larger size and glow effect
+            const particle = draw.circle(12)
+                .fill(type === 'list' ? '#10B981' : '#8B5CF6')
+                .move(from.x - 6, from.y - 6)
+                .attr({
+                    opacity: 0.8,
+                    filter: `drop-shadow(0 0 3px ${type === 'list' ? '#10B981' : '#8B5CF6'})`
+                });
 
-        // Animate particle
-        particle.animate(1000)
-            .move(to.x - 5, to.y - 5)
-            .after(function() {
-                // Create ripple effect
+            // Create trailing effect
+            const trail = draw.circle(8)
+                .fill(type === 'list' ? '#10B981' : '#8B5CF6')
+                .move(from.x - 4, from.y - 4)
+                .attr('opacity', 0.4);
+
+            // Animate particle and trail
+            particle.animate(1500).during((pos) => {
+                const x = from.x + (to.x - from.x) * pos;
+                const y = from.y + (to.y - from.y) * pos;
+                particle.center(x, y);
+                trail.center(x - (to.x - from.x) * 0.1, y - (to.y - from.y) * 0.1);
+            }).after(function() {
+                // Create ripple effect on arrival
                 const ripple = draw.circle(20)
                     .fill('none')
                     .stroke({ color: type === 'list' ? '#10B981' : '#8B5CF6', width: 2 })
                     .move(to.x - 10, to.y - 10);
 
                 ripple.animate(1000)
-                    .attr({ r: 40, opacity: 0 })
-                    .after(() => ripple.remove());
-
-                particle.remove();
+                    .scale(2)
+                    .attr('opacity', 0)
+                    .after(() => {
+                        ripple.remove();
+                        particle.remove();
+                        trail.remove();
+                    });
             });
 
-        // Add to activity log
-        const log = document.getElementById('activity-log');
-        const logEntry = document.createElement('div');
-        logEntry.className = `p-3 bg-gray-50 rounded-md transaction-log ${type}`;
-        logEntry.innerHTML = `
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <i class="fas fa-${type === 'list' ? 'tag' : 'shopping-cart'}
-                             text-${type === 'list' ? 'green' : 'purple'}-500 mr-2"></i>
-                    <span class="font-medium">Port ${fromPort} → Port ${toPort}</span>
+            // Add to activity log
+            const log = document.getElementById('activity-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = `p-3 bg-gray-50 rounded-md transaction-log ${type}`;
+            logEntry.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-${type === 'list' ? 'tag' : 'shopping-cart'}
+                                 text-${type === 'list' ? 'green' : 'purple'}-500 mr-2"></i>
+                        <span class="font-medium">Port ${fromPort} → Port ${toPort}</span>
+                    </div>
+                    <span class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</span>
                 </div>
-                <span class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</span>
-            </div>
-            <p class="text-sm text-gray-600 mt-1">${details}</p>
-        `;
-        log.insertBefore(logEntry, log.firstChild);
-    }
+                <p class="text-sm text-gray-600 mt-1">${details}</p>
+            `;
+            log.insertBefore(logEntry, log.firstChild);
+        }
 
-    function filterTransactions(type) {
-        const logs = document.querySelectorAll('.transaction-log');
-        logs.forEach(log => {
-            if (type === 'all' || log.classList.contains(type)) {
-                log.style.display = 'block';
-            } else {
-                log.style.display = 'none';
+        let lastTransactionId = 0;
+
+        async function checkForNewTransactions() {
+            try {
+                const response = await fetch('/get_latest_transactions');
+                const data = await response.json();
+
+                if (data.transactions && data.transactions.length > 0) {
+                    const latestTx = data.transactions[0];
+
+                    // Only process if it's a new transaction
+                    if (latestTx.id > lastTransactionId) {
+                        lastTransactionId = latestTx.id;
+
+                        // Update transaction count
+                        document.getElementById('recentTransactions').textContent = data.transactions.length;
+
+                        // Determine ports for animation
+                        let fromPort = latestTx.source_port;
+                        let toPort = null;
+
+                        // For purchases, animate from buyer's port to seller's port
+                        // For listings, animate from seller's port to a random other port
+                        if (latestTx.type === 'purchase') {
+                            // Find a different port for the buyer
+                            const availablePorts = [8000, 8001, 8002, 8003, 8004].filter(p => p !== fromPort);
+                            toPort = availablePorts[Math.floor(Math.random() * availablePorts.length)];
+                        } else {
+                            // For listings, show distribution to other nodes
+                            const availablePorts = [8000, 8001, 8002, 8003, 8004].filter(p => p !== fromPort);
+                            toPort = availablePorts[Math.floor(Math.random() * availablePorts.length)];
+                        }
+
+                        if (toPort) {
+                            // Create transaction description
+                            const details = latestTx.type === 'purchase'
+                                ? `Purchase: ${latestTx.product} for $${latestTx.amount} from ${latestTx.sender}`
+                                : `Listed: ${latestTx.product} for $${latestTx.amount} by ${latestTx.sender}`;
+
+                            // Animate the transaction
+                            animateTransaction(fromPort, toPort, latestTx.type, details);
+
+                            // For listings, show propagation to other nodes
+                            if (latestTx.type === 'list') {
+                                setTimeout(() => {
+                                    const otherPorts = [8000, 8001, 8002, 8003, 8004]
+                                        .filter(p => p !== fromPort && p !== toPort);
+
+                                    otherPorts.forEach((port, index) => {
+                                        setTimeout(() => {
+                                            animateTransaction(toPort, port, 'list', 'Propagating listing to network');
+                                        }, index * 500);
+                                    });
+                                }, 1000);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for new transactions:', error);
             }
-        });
-    }
+        }
 
-    // Function to update node status
-    async function updateNodeStatus() {
-        try {
-            const response = await fetch('/get_peer_status');
-            const status = await response.json();
-            let activeCount = 0;
-
-            Object.entries(status).forEach(([port, state]) => {
-                const nodeElement = nodeElements[port];
-                if (nodeElement) {
-                    const color = state === 'online' ? '#10B981' : '#EF4444';
-                    nodeElement.statusRing.stroke({ color });
-                    if (state === 'online') activeCount++;
+        function filterTransactions(type) {
+            const logs = document.querySelectorAll('.transaction-log');
+            logs.forEach(log => {
+                if (type === 'all' || log.classList.contains(type)) {
+                    log.style.display = 'block';
+                } else {
+                    log.style.display = 'none';
                 }
             });
-
-            document.getElementById('activeNodes').textContent = activeCount;
-        } catch (error) {
-            console.error('Error updating node status:', error);
         }
-    }
 
-    // Initialize and set up periodic updates
-    updateNodeStatus();
-    setInterval(updateNodeStatus, 5000);
+        // Function to update node status
+        async function updateNodeStatus() {
+            try {
+                const response = await fetch('/get_peer_status');
+                const status = await response.json();
+                let activeCount = 0;
 
-    // WebSocket or polling could be implemented here to get real-time transaction updates
-    // For now, we'll simulate some activity
-    let transactionCount = 0;
-    async function checkForNewTransactions() {
-        try {
-            const response = await fetch('/view_database');
-            const data = await response.json();
-            const newCount = data.transactions.length;
+                Object.entries(status).forEach(([port, state]) => {
+                const nodeElement = nodeElements[port];
+                    if (nodeElement) {
+                        const color = state === 'online' ? '#10B981' : '#EF4444';
+                        nodeElement.statusRing.stroke({ color });
+                        if (state === 'online') activeCount++;
+                    }
+                });
 
-            if (newCount > transactionCount) {
-                // New transaction detected
-                const latestTx = data.transactions[0];
-                const fromPort = Math.floor(Math.random() * 5) + 8000; // Simulate source
-                const toPort = Math.floor(Math.random() * 5) + 8000;
-
-                if (fromPort !== toPort) {
-                    animateTransaction(
-                        fromPort,
-                        toPort,
-                        latestTx[5], // type
-                        `${latestTx[5] === 'list' ? 'Listed' : 'Purchased'}: ${latestTx[3]} for $${latestTx[4]}`
-                    );
+                document.getElementById('activeNodes').textContent = activeCount;
+                // Update network status text
+                const networkStatusElement = document.getElementById('networkStatus');
+                if (activeCount > 0) {
+                    networkStatusElement.textContent = 'Active';
+                    networkStatusElement.className = 'text-2xl font-bold text-green-600';
+                } else {
+                    networkStatusElement.textContent = 'Offline';
+                    networkStatusElement.className = 'text-2xl font-bold text-red-600';
                 }
-
-                transactionCount = newCount;
-                document.getElementById('recentTransactions').textContent = transactionCount;
+            } catch (error) {
+                console.error('Error updating node status:', error);
             }
-        } catch (error) {
-            console.error('Error checking for new transactions:', error);
         }
-    }
 
-    // Check for new transactions periodically
-    setInterval(checkForNewTransactions, 2000);
+        // Initialize status updates
+        updateNodeStatus();
+        setInterval(updateNodeStatus, 5000);
+
+        // Initialize transaction checking
+        checkForNewTransactions();
+        setInterval(checkForNewTransactions, 1000);
     </script>
 </body>
 </html>

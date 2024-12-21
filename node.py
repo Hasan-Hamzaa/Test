@@ -63,38 +63,64 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/network_activity')
+def network_activity():
+    return render_template('network_activity.html')
+
+
 @app.route('/sell')
 def sell_page():
     return render_template('sell.html')
 
 
-@app.route('/get_database_updates')
-def get_database_updates():
-    try:
-        db_name = f'database_{blockchain.flask_port}.db'
-        conn = sqlite3.connect(db_name)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 10")
-        transactions = cursor.fetchall()
-
-        return jsonify({
-            'transactions': transactions
-        }), 200
-    except sqlite3.Error as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
-@app.route('/network_activity')
-def network_activity():
-    return render_template('network_activity.html')
-
 @app.route('/buy')
 def buy_page():
     listings = get_all_listings()
     return render_template('buy.html', listings=listings)
+
+
+@app.route('/get_latest_transactions')
+def get_latest_transactions():
+    try:
+        latest_transactions = []
+        for port in [8000, 8001, 8002, 8003, 8004]:
+            db_name = f'database_{port}.db'
+            try:
+                conn = sqlite3.connect(db_name)
+                cursor = conn.cursor()
+
+                # Get the most recent transactions
+                cursor.execute("""
+                    SELECT * FROM transactions 
+                    ORDER BY id DESC LIMIT 5
+                """)
+                transactions = cursor.fetchall()
+
+                for tx in transactions:
+                    latest_transactions.append({
+                        'source_port': port,
+                        'id': tx[0],
+                        'sender': tx[1],
+                        'receiver': tx[2],
+                        'product': tx[3],
+                        'amount': tx[4],
+                        'type': tx[5]
+                    })
+
+            except sqlite3.Error as e:
+                print(f"Database error for {db_name}: {e}")
+            finally:
+                if 'conn' in locals():
+                    conn.close()
+
+        # Sort by ID to get the most recent first
+        latest_transactions.sort(key=lambda x: x['id'], reverse=True)
+
+        return jsonify({
+            'transactions': latest_transactions[:10]  # Return last 10 transactions
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/mine_block', methods=['GET'])
