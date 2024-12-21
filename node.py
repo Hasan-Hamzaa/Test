@@ -17,8 +17,8 @@ blockchain = Blockchain(difficulty=2, port=args.port)
 
 def get_all_listings():
     listings = []
-    # Read from both databases (8000 and 8001)
-    for port in [8000, 8001]:
+    # Read from all databases
+    for port in [8000, 8001, 8002, 8003, 8004]:
         db_name = f'database_{port}.db'
         try:
             conn = sqlite3.connect(db_name)
@@ -56,6 +56,7 @@ def get_all_listings():
             if 'conn' in locals():
                 conn.close()
     return listings
+
 
 @app.route('/')
 def index():
@@ -130,14 +131,18 @@ def view_database():
     except sqlite3.Error as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/ping')
 def ping():
     return jsonify({'status': 'alive', 'port': blockchain.flask_port}), 200
+
 
 @app.route('/get_peer_status')
 def get_peer_status():
     status = blockchain.check_peer_status()
     return jsonify(status)
+
+
 @app.route('/list_product', methods=['POST'])
 def list_product():
     json_data = request.get_json()
@@ -157,8 +162,8 @@ def purchase_product():
     if not all(field in json_data for field in required_fields):
         return 'Purchase data incomplete', 400
 
-    # Try to find and process the purchase in both databases
-    for port in [8000, 8001]:
+    # Try to find and process the purchase in all databases
+    for port in [8000, 8001, 8002, 8003, 8004]:
         db_name = f'database_{port}.db'
         try:
             conn = sqlite3.connect(db_name)
@@ -204,6 +209,30 @@ def get_peers():
     return jsonify({'peers': list(blockchain.connected_peers)}), 200
 
 
+@app.route('/register_node', methods=['POST'])
+def register_node():
+    json_data = request.get_json()
+    if not json_data:
+        return "Error: Please supply valid node data", 400
+
+    node_address = json_data.get('address')
+    p2p_port = json_data.get('p2p_port')
+
+    if node_address is None:
+        return "Error: Please supply a valid node address", 400
+
+    blockchain.connected_peers.add(node_address)
+
+    # Try to establish P2P connection
+    try:
+        blockchain.node.connect_with_node('127.0.0.1', p2p_port)
+    except:
+        print(f"Failed to establish P2P connection with port {p2p_port}")
+
+    return jsonify({'message': 'New node added successfully',
+                    'total_nodes': list(blockchain.connected_peers)}), 201
+
+
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
     data = request.get_json()
@@ -213,5 +242,13 @@ def receive_transaction():
 
 
 if __name__ == '__main__':
-    flask_port = 8000 if args.port == 5001 else 8001
+    # Update port mapping
+    port_mapping = {
+        5001: 8000,
+        5002: 8001,
+        5003: 8002,
+        5004: 8003,
+        5005: 8004
+    }
+    flask_port = port_mapping.get(args.port, 8000)
     app.run(host='0.0.0.0', port=flask_port, debug=True)

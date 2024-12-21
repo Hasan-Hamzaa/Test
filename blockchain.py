@@ -16,10 +16,19 @@ class Blockchain:
         self.difficulty = difficulty
         self.port = port + random.randint(1, 1000)  # Randomize port to avoid conflicts
         self.address = address
-        self.flask_port = 8000 if port == 5001 else 8001  # Map P2P port to Flask port
+
+        # Change the port mapping
+        port_to_flask = {
+            5001: 8000,
+            5002: 8001,
+            5003: 8002,
+            5004: 8003,
+            5005: 8004
+        }
+        self.flask_port = port_to_flask.get(port, 8000)
 
         # Add these lines for peer tracking
-        self.peer_ports = [8000, 8001]  # List of possible peer ports
+        self.peer_ports = [8000, 8001, 8002, 8003, 8004]  # List of possible peer ports
         self.last_seen = {}  # Track last time peer was seen
 
         # Initialize node with required parameters
@@ -35,6 +44,7 @@ class Blockchain:
         # Connect to existing node if this is not the first node
         if self.flask_port != 8000:
             self.connect_to_network()
+
     def my_callback(self, event):
         if hasattr(event, 'id'):
             print(f"Peer connected: {event.id}")
@@ -77,12 +87,13 @@ class Blockchain:
                 self.node.send_to_node(node, {"type": "NEW_TRANSACTION", "transaction": transaction})
 
         # HTTP broadcast to known peers
-        for peer in self.connected_peers:
-            try:
-                url = f'http://127.0.0.1:{peer}/receive_transaction'
-                requests.post(url, json={"transaction": transaction})
-            except requests.exceptions.RequestException as e:
-                print(f"Failed to broadcast to peer {peer}: {e}")
+        for port in self.peer_ports:
+            if port != self.flask_port:
+                try:
+                    url = f'http://127.0.0.1:{port}/receive_transaction'
+                    requests.post(url, json={"transaction": transaction})
+                except requests.exceptions.RequestException as e:
+                    print(f"Failed to broadcast to peer {port}: {e}")
 
     def receive_transaction(self, transaction):
         """Handle receiving transaction from other nodes"""
@@ -136,22 +147,23 @@ class Blockchain:
         # Store in current node's database
         self.store_transaction_in_db(sender, receiver, product, amount, transaction_type)
 
-        # Store in other node's database
-        other_port = 8001 if self.flask_port == 8000 else 8000
-        other_db = f'database_{other_port}.db'
-        try:
-            conn = sqlite3.connect(other_db)
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO transactions (sender, receiver, product, amount, type) VALUES (?, ?, ?, ?, ?)",
-                (sender, receiver, product, amount, transaction_type)
-            )
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error storing transaction in other database: {e}")
-        finally:
-            if 'conn' in locals():
-                conn.close()
+        # Store in all other nodes' databases
+        for port in self.peer_ports:
+            if port != self.flask_port:
+                other_db = f'database_{port}.db'
+                try:
+                    conn = sqlite3.connect(other_db)
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO transactions (sender, receiver, product, amount, type) VALUES (?, ?, ?, ?, ?)",
+                        (sender, receiver, product, amount, transaction_type)
+                    )
+                    conn.commit()
+                except sqlite3.Error as e:
+                    print(f"Error storing transaction in database {port}: {e}")
+                finally:
+                    if 'conn' in locals():
+                        conn.close()
 
         # Add to pending transactions
         self.transactions.append(transaction)
@@ -164,20 +176,16 @@ class Blockchain:
 
         self.create_block(previous_hash)
 
-        # Try to broadcast to other node
-        try:
-            other_port = 8001 if self.flask_port == 8000 else 8000
-            requests.post(f'http://127.0.0.1:{other_port}/receive_transaction',
-                          json={'transaction': transaction})
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to broadcast to other node: {e}")
+        # Try to broadcast to other nodes
+        for port in self.peer_ports:
+            if port != self.flask_port:
+                try:
+                    requests.post(f'http://127.0.0.1:{port}/receive_transaction',
+                                  json={'transaction': transaction})
+                except requests.exceptions.RequestException as e:
+                    print(f"Failed to broadcast to node {port}: {e}")
 
         return len(self.chain)
-
-    def init_peer_status(self):
-        # Add to __init__ method
-        self.last_seen = {}  # Track last time peer was seen
-        self.peer_ports = [8000, 8001]  # List of possible peer ports
 
     def check_peer_status(self):
         status = {}
@@ -193,6 +201,7 @@ class Blockchain:
                 except:
                     status[port] = 'offline'
         return status
+
     def get_latest_block(self):
         return self.chain[-1] if self.chain else None
 
