@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Activity - Blockchain Marketplace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.1.2/svg.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <a href="/" class="flex items-center">
+                            <i class="fas fa-link text-blue-600 text-2xl mr-2"></i>
+                            <span class="text-xl font-bold text-gray-800">Network Activity</span>
+                        </a>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="location.reload()" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <a href="/" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-home mr-2"></i>Back to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Network Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Active Nodes</p>
+                            <h3 id="activeNodes" class="text-2xl font-bold text-gray-900">-</h3>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-server text-blue-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Recent Transactions</p>
+                            <h3 id="recentTransactions" class="text-2xl font-bold text-gray-900">-</h3>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-exchange-alt text-green-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Network Status</p>
+                            <h3 id="networkStatus" class="text-2xl font-bold text-green-600">Active</h3>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-full">
+                            <i class="fas fa-signal text-purple-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Visualization -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Network Visualization</h2>
+                <div class="h-96 border border-gray-200 rounded-lg" id="network-visualization">
+                    <!-- SVG will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Activity Log</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="filterTransactions('all')" class="px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors">All</button>
+                        <button onclick="filterTransactions('list')" class="px-3 py-1 rounded-md bg-green-100 hover:bg-green-200 transition-colors">Listings</button>
+                        <button onclick="filterTransactions('purchase')" class="px-3 py-1 rounded-md bg-purple-100 hover:bg-purple-200 transition-colors">Purchases</button>
+                    </div>
+                </div>
+                <div id="activity-log" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Activity logs will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Initialize SVG drawing
+    const draw = SVG().addTo('#network-visualization').size('100%', '100%');
+    const containerWidth = document.getElementById('network-visualization').offsetWidth;
+    const containerHeight = document.getElementById('network-visualization').offsetHeight;
+
+    // Calculate node positions based on container size
+    const centerX = containerWidth / 2;
+    const centerY = containerHeight / 2;
+    const radius = Math.min(containerWidth, containerHeight) / 3;
+
+    // Node positions in a pentagon formation
+    const nodes = {
+        8000: { x: centerX, y: centerY - radius },  // Top
+        8001: { x: centerX + radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) },  // Right top
+        8002: { x: centerX + radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Right bottom
+        8003: { x: centerX - radius * Math.cos(0.6 * Math.PI), y: centerY + radius * Math.sin(0.6 * Math.PI) },  // Left bottom
+        8004: { x: centerX - radius * Math.cos(0.2 * Math.PI), y: centerY - radius * Math.sin(0.2 * Math.PI) }   // Left top
+    };
+
+    // Draw connection lines between nodes
+    Object.entries(nodes).forEach(([fromPort, fromPos]) => {
+        Object.entries(nodes).forEach(([toPort, toPos]) => {
+            if (fromPort < toPort) {
+                draw.line(fromPos.x, fromPos.y, toPos.x, toPos.y)
+                    .stroke({ color: '#E5E7EB', width: 1, dasharray: '4' });
+            }
+        });
+    });
+
+    // Draw nodes
+    const nodeElements = {};
+    Object.entries(nodes).forEach(([port, pos]) => {
+        const node = draw.group();
+
+        // Outer circle (status indicator)
+        const statusRing = node.circle(70)
+            .fill('none')
+            .stroke({ color: '#E5E7EB', width: 2 })
+            .move(pos.x - 35, pos.y - 35);
+
+        // Inner circle (node)
+        const circle = node.circle(60)
+            .fill('#fff')
+            .stroke({ color: '#3B82F6', width: 2 })
+            .move(pos.x - 30, pos.y - 30);
+
+        // Port number
+        node.text(port.toString())
+            .font({ family: 'Arial', size: 14, weight: 'bold' })
+            .center(pos.x, pos.y);
+
+        nodeElements[port] = { node, statusRing };
+    });
+
+    // Function to animate transaction
+    function animateTransaction(fromPort, toPort, type, details) {
+        const from = nodes[fromPort];
+        const to = nodes[toPort];
+
+        // Create transaction particle
+        const particle = draw.circle(10)
+            .fill(type === 'list' ? '#10B981' : '#8B5CF6')
+            .move(from.x - 5, from.y - 5);
+
+        // Animate particle
+        particle.animate(1000)
+            .move(to.x - 5, to.y - 5)
+            .after(function() {
+                // Create ripple effect
+                const ripple = draw.circle(20)
+                    .fill('none')
+                    .stroke({ color: type === 'list' ? '#10B981' : '#8B5CF6', width: 2 })
+                    .move(to.x - 10, to.y - 10);
+
+                ripple.animate(1000)
+                    .attr({ r: 40, opacity: 0 })
+                    .after(() => ripple.remove());
+
+                particle.remove();
+            });
+
+        // Add to activity log
+        const log = document.getElementById('activity-log');
+        const logEntry = document.createElement('div');
+        logEntry.className = `p-3 bg-gray-50 rounded-md transaction-log ${type}`;
+        logEntry.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'list' ? 'tag' : 'shopping-cart'}
+                             text-${type === 'list' ? 'green' : 'purple'}-500 mr-2"></i>
+                    <span class="font-medium">Port ${fromPort} → Port ${toPort}</span>
+                </div>
+                <span class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</span>
+            </div>
+            <p class="text-sm text-gray-600 mt-1">${details}</p>
+        `;
+        log.insertBefore(logEntry, log.firstChild);
+    }
+
+    function filterTransactions(type) {
+        const logs = document.querySelectorAll('.transaction-log');
+        logs.forEach(log => {
+            if (type === 'all' || log.classList.contains(type)) {
+                log.style.display = 'block';
+            } else {
+                log.style.display = 'none';
+            }
+        });
+    }
+
+    // Function to update node status
+    async function updateNodeStatus() {
+        try {
+            const response = await fetch('/get_peer_status');
+            const status = await response.json();
+            let activeCount = 0;
+
+            Object.entries(status).forEach(([port, state]) => {
+                const nodeElement = nodeElements[port];
+                if (nodeElement) {
+                    const color = state === 'online' ? '#10B981' : '#EF4444';
+                    nodeElement.statusRing.stroke({ color });
+                    if (state === 'online') activeCount++;
+                }
+            });
+
+            document.getElementById('activeNodes').textContent = activeCount;
+        } catch (error) {
+            console.error('Error updating node status:', error);
+        }
+    }
+
+    // Initialize and set up periodic updates
+    updateNodeStatus();
+    setInterval(updateNodeStatus, 5000);
+
+    // WebSocket or polling could be implemented here to get real-time transaction updates
+    // For now, we'll simulate some activity
+    let transactionCount = 0;
+    async function checkForNewTransactions() {
+        try {
+            const response = await fetch('/view_database');
+            const data = await response.json();
+            const newCount = data.transactions.length;
+
+            if (newCount > transactionCount) {
+                // New transaction detected
+                const latestTx = data.transactions[0];
+                const fromPort = Math.floor(Math.random() * 5) + 8000; // Simulate source
+                const toPort = Math.floor(Math.random() * 5) + 8000;
+
+                if (fromPort !== toPort) {
+                    animateTransaction(
+                        fromPort,
+                        toPort,
+                        latestTx[5], // type
+                        `${latestTx[5] === 'list' ? 'Listed' : 'Purchased'}: ${latestTx[3]} for $${latestTx[4]}`
+                    );
+                }
+
+                transactionCount = newCount;
+                document.getElementById('recentTransactions').textContent = transactionCount;
+            }
+        } catch (error) {
+            console.error('Error checking for new transactions:', error);
+        }
+    }
+
+    // Check for new transactions periodically
+    setInterval(checkForNewTransactions, 2000);
+    </script>
+</body>
+</html>

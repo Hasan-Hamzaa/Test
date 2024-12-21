@@ -68,6 +68,29 @@ def sell_page():
     return render_template('sell.html')
 
 
+@app.route('/get_database_updates')
+def get_database_updates():
+    try:
+        db_name = f'database_{blockchain.flask_port}.db'
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 10")
+        transactions = cursor.fetchall()
+
+        return jsonify({
+            'transactions': transactions
+        }), 200
+    except sqlite3.Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/network_activity')
+def network_activity():
+    return render_template('network_activity.html')
+
 @app.route('/buy')
 def buy_page():
     listings = get_all_listings()
