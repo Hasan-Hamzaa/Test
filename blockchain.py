@@ -18,6 +18,10 @@ class Blockchain:
         self.address = address
         self.flask_port = 8000 if port == 5001 else 8001  # Map P2P port to Flask port
 
+        # Add these lines for peer tracking
+        self.peer_ports = [8000, 8001]  # List of possible peer ports
+        self.last_seen = {}  # Track last time peer was seen
+
         # Initialize node with required parameters
         self.node = Node(host=self.address,
                          port=self.port,
@@ -31,7 +35,6 @@ class Blockchain:
         # Connect to existing node if this is not the first node
         if self.flask_port != 8000:
             self.connect_to_network()
-
     def my_callback(self, event):
         if hasattr(event, 'id'):
             print(f"Peer connected: {event.id}")
@@ -171,6 +174,25 @@ class Blockchain:
 
         return len(self.chain)
 
+    def init_peer_status(self):
+        # Add to __init__ method
+        self.last_seen = {}  # Track last time peer was seen
+        self.peer_ports = [8000, 8001]  # List of possible peer ports
+
+    def check_peer_status(self):
+        status = {}
+        for port in self.peer_ports:
+            if port != self.flask_port:  # Don't check self
+                try:
+                    response = requests.get(f'http://127.0.0.1:{port}/ping', timeout=1)
+                    if response.status_code == 200:
+                        status[port] = 'online'
+                        self.last_seen[port] = time.time()
+                    else:
+                        status[port] = 'offline'
+                except:
+                    status[port] = 'offline'
+        return status
     def get_latest_block(self):
         return self.chain[-1] if self.chain else None
 

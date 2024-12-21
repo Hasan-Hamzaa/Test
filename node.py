@@ -130,7 +130,14 @@ def view_database():
     except sqlite3.Error as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/ping')
+def ping():
+    return jsonify({'status': 'alive', 'port': blockchain.flask_port}), 200
 
+@app.route('/get_peer_status')
+def get_peer_status():
+    status = blockchain.check_peer_status()
+    return jsonify(status)
 @app.route('/list_product', methods=['POST'])
 def list_product():
     json_data = request.get_json()
