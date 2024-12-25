@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory - Blockchain Marketplace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <a href="/" class="flex items-center">
+                            <i class="fas fa-link text-blue-600 text-2xl mr-2"></i>
+                            <span class="text-xl font-bold text-gray-800">Blockchain Marketplace</span>
+                            <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md">Port {{ port }}</span>
+                        </a>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="/sell" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Sell Item
+                        </a>
+                        <a href="/buy" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-shopping-cart mr-2"></i>Buy Items
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total Purchases -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Purchases</p>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ purchases|length }}</h3>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-shopping-bag text-blue-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Listings -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Active Listings</p>
+                            <h3 class="text-2xl font-bold text-gray-900">{{ listings|length }}</h3>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-tag text-green-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Value -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Value</p>
+                            <h3 class="text-2xl font-bold text-gray-900">
+                                ${{ (purchases|sum(attribute='4') + listings|sum(attribute='4'))|int }}
+                            </h3>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-full">
+                            <i class="fas fa-dollar-sign text-purple-500 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchased Items -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-shopping-bag text-blue-500 mr-2"></i>
+                    Purchased Items
+                </h2>
+                {% if purchases %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for item in purchases %}
+                    <div class="bg-gray-50 rounded-lg p-4 transform transition-all duration-300 hover:scale-105">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-semibold text-gray-800">{{ item[3] }}</h3>
+                                <p class="text-sm text-gray-500">From: Port {{ item[1] }}</p>
+                            </div>
+                            <span class="bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded-full">
+                                ${{ item[4] }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-4">No purchases yet</p>
+                {% endif %}
+            </div>
+
+            <!-- Active Listings -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-tag text-green-500 mr-2"></i>
+                    Active Listings
+                </h2>
+                {% if listings %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for item in listings %}
+                    <div class="bg-gray-50 rounded-lg p-4 transform transition-all duration-300 hover:scale-105">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-semibold text-gray-800">{{ item[3] }}</h3>
+                                <p class="text-sm text-gray-500">Listed by you</p>
+                            </div>
+                            <span class="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
+                                ${{ item[4] }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-4">No active listings</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

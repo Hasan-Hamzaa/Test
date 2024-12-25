@@ -282,6 +282,50 @@ def register_node():
                     'total_nodes': list(blockchain.connected_peers)}), 201
 
 
+@app.route('/inventory')
+def inventory_page():
+    try:
+        port = request.args.get('port', blockchain.flask_port)
+        db_name = f'database_{port}.db'
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Get purchased items
+        cursor.execute("""
+            SELECT t.* FROM transactions t
+            WHERE (t.receiver = ? AND t.type = 'purchase')
+            OR (t.sender = ? AND t.type = 'purchase')
+            ORDER BY t.id DESC
+        """, (port, port))
+
+        purchases = cursor.fetchall()
+
+        # Get active listings
+        cursor.execute("""
+            SELECT * FROM transactions 
+            WHERE sender = ? AND type = 'list'
+            AND id NOT IN (
+                SELECT t1.id FROM transactions t1
+                JOIN transactions t2 ON t1.product = t2.product 
+                AND t1.sender = t2.sender
+                WHERE t2.type = 'purchase'
+            )
+            ORDER BY id DESC
+        """, (port,))
+
+        listings = cursor.fetchall()
+
+        return render_template('inventory.html',
+                               purchases=purchases,
+                               listings=listings,
+                               port=port)
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return "Database error", 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
     data = request.get_json()
