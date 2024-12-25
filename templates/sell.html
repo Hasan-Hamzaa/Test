@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
     <div class="min-h-screen">
         <!-- Navigation -->
         <nav class="bg-white shadow-lg">
@@ -18,6 +18,7 @@
                         <a href="/" class="flex items-center">
                             <i class="fas fa-link text-blue-600 text-2xl mr-2"></i>
                             <span class="text-xl font-bold text-gray-800">Blockchain Marketplace</span>
+                            <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md">Port <span id="currentPort">-</span></span>
                         </a>
                     </div>
                     <div class="flex items-center">
@@ -31,26 +32,13 @@
 
         <!-- Main Content -->
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="bg-white rounded-lg shadow-md p-8">
+            <div class="bg-white rounded-xl shadow-md p-8">
                 <div class="mb-8">
                     <h1 class="text-3xl font-bold text-gray-900">List a Product</h1>
                     <p class="mt-2 text-gray-600">Create a new listing on the blockchain marketplace</p>
                 </div>
 
                 <form id="listingForm" class="space-y-6">
-                    <!-- Seller Input -->
-                    <div>
-                        <label for="seller" class="block text-sm font-medium text-gray-700">Seller Name</label>
-                        <div class="mt-1 relative rounded-md shadow-sm">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-user text-gray-400"></i>
-                            </div>
-                            <input type="text" id="seller" name="seller" required
-                                class="block w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Your name">
-                        </div>
-                    </div>
-
                     <!-- Product Input -->
                     <div>
                         <label for="product" class="block text-sm font-medium text-gray-700">Product Name</label>
@@ -79,27 +67,40 @@
 
                     <!-- Submit Button -->
                     <button type="submit"
-                        class="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center">
+                        class="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-md hover:from-blue-600 hover:to-purple-600 transition-colors flex items-center justify-center">
                         <i class="fas fa-tag mr-2"></i>
                         List Product
                     </button>
                 </form>
+
+                <!-- Back Button -->
+                <div class="mt-6">
+                    <a href="/" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Home
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+    // Set current port in the navbar
+    document.getElementById('currentPort').textContent = window.location.port;
+
     document.getElementById('listingForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        const currentPort = window.location.port;
+
         const formData = {
-            sender: document.getElementById('seller').value.trim(),
+            sender: currentPort,
             product: document.getElementById('product').value.trim(),
             amount: parseFloat(document.getElementById('amount').value)
         };
 
         // Validate inputs
-        if (!formData.sender || !formData.product || isNaN(formData.amount)) {
+        if (!formData.product || isNaN(formData.amount)) {
             Swal.fire({
                 title: 'Error!',
                 text: 'Please fill in all fields correctly',
@@ -121,7 +122,7 @@
             if (response.ok) {
                 Swal.fire({
                     title: 'Success!',
-                    text: 'Product listed successfully!',
+                    text: `Port ${currentPort} successfully listed ${formData.product}!`,
                     icon: 'success',
                     confirmButtonText: 'OK'
                 }).then((result) => {
