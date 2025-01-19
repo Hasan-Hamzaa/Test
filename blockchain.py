@@ -245,7 +245,7 @@ class Blockchain:
         received_chain = chain_data['chain']
         if len(received_chain) > len(self.chain) and self.is_chain_valid(received_chain):
             print("Updating chain from peer")
-            self.chain = received_chain
+            self.chain = received_ch
             self.persist_chain_to_db()
         else:
             print("Received chain is invalid")
@@ -374,3 +374,4 @@ class Blockchain:
         finally:
             if 'conn' in locals():
                 conn.close()
+
