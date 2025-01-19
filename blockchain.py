@@ -8,16 +8,15 @@ import socket
 import random
 import requests
 
-
 class Blockchain:
     def __init__(self, difficulty=4, port=5001, address="127.0.0.1"):
-        self.chain = []
-        self.transactions = []
+        self.chain = [] #Array
+        self.transactions = [] #Array
         self.difficulty = difficulty
         self.port = port + random.randint(1, 1000)  # Randomize port to avoid conflicts
         self.address = address
 
-        # Change the port mapping
+        # Change the port mapping, so I can solve the conflicts
         port_to_flask = {
             5001: 8000,
             5002: 8001,
