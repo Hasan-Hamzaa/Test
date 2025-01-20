@@ -3,6 +3,7 @@
 
 A Python-based blockchain project that facilitates a decentralized marketplace using peer-to-peer networking, blockchain technology, and a RESTful Flask API. This project enables secure, transparent, and tamper-proof transactions for listing and purchasing products in a distributed environment.
 
+#YOU MUST TURN OFF THE FIREWALL ON THE BOTH DEVICES, AS WELL AS, YOU SHOULD CONFIGURE YOUR PHYSICAL FIREWALL SETTINGS, IN MY CASE IT IS FORTIGATE FG200F, YOU SHOULD TURN ON 1:NATTING 2:HTTPS 3:PING 4:FMG-ACCESS, TO WORK PERFECTLY!.
 ---
 
 ## 📝 Table of Contents
@@ -14,8 +15,7 @@ A Python-based blockchain project that facilitates a decentralized marketplace u
 - [Installation](#installation)
 - [Usage](#usage)
 - [API Endpoints](#api-endpoints)
-- [Contributors](#contributors)
-- [License](#license)
+
 
 ---
 
